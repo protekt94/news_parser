@@ -86,7 +86,7 @@ async def start(message_from: types.Message) -> None:
 #         await message.answer("Пока нет свежих новостей")
 
 
-async def news_every_15_minutes():
+async def news_every_minute():
     while True:
         fresh_news = check_news_update_antimalware()
         if len(fresh_news) >= 1:
@@ -94,13 +94,10 @@ async def news_every_15_minutes():
                 news = f"{hbold(k[:10])}\n" \
                        f"{hlink(v['article_title'], v['article_url'])}"
                 await bot.send_message(settings['user_id'], news, disable_notification=True)
-        else:
-            await bot.send_message(settings['user_id'], 'Пока свежих новостей нет')
-
         await asyncio.sleep(60)
 
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
-    loop.create_task(news_every_15_minutes())
+    loop.create_task(news_every_minute())
     executor.start_polling(dp, skip_updates=True)
