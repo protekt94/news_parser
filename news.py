@@ -20,8 +20,17 @@ news_xakep: GetNews = GetNews(
 news_antimalware: GetNews = GetNews(
     headers={
         "user - agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-                        "Chrome/102.0.5005.167 YaBrowser/22.7.3.829 Yowser/2.5 Safari/537.36"},
+                        "Chrome/102.0.5005.167 YaBrowser/22.7.3.829 Yowser/2.5 Safari/537.36"
+    },
     url='https://www.anti-malware.ru/news/'
+)
+
+news_habr: GetNews = GetNews(
+    headers={
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/102.0.5005.167 YaBrowser/22.7.3.829 Yowser/2.5 Safari/537.36"
+    },
+    url='https://habr.com/ru/hub/infosecurity/'
 )
 
 
@@ -34,7 +43,6 @@ def get_xakep_news():
     xakep_news = {}
     for article in articles_cards:
         article_title = article.find("h3", class_="entry-title").text.strip()
-        article_desc = article.find("p").text.strip()
         article_url = article.find("a").get("href")
         url_id = article_url.split("/")[-5:-1]
         article_date = ' '.join(url_id[:3])
@@ -43,7 +51,6 @@ def get_xakep_news():
 
         xakep_news[article_id] = {
             "article_title": article_title,
-            "article_desc": article_desc,
             "article_url": article_url,
             "article_date": article_date
         }
@@ -57,26 +64,54 @@ def get_antimalware_news():
     soup = BeautifulSoup(r.text, "lxml")
     articles_cards = soup.find_all("div", class_="view-content")
     antimalware_news = {}
-    for article in articles_cards:
-        for i_article in article.find_all("div", class_='node node-news node-teaser clearfix'):
-            article_title = i_article.find("h2").text
-            article_desc = i_article.find("p").text.strip()
-            article_url = i_article.find("a").get("href")
-            article_date = article_url.split('/')[2].split('-')[:3]
-            article_date = ' '.join(article_date)
-            article_date = str(datetime.datetime.strptime(article_date, '%Y %m %d').date())
+    with open('news_dict.json') as file:
+        data = json.load(file)
+        for article in articles_cards:
+            for i_article in article.find_all("div", class_='node node-news node-teaser clearfix'):
+                article_title = i_article.find("h2").text
+                article_url = i_article.find("a").get("href")
+                article_date = article_url.split('/')[2].split('-')[:3]
+                article_date = ' '.join(article_date)
+                article_date = str(datetime.datetime.strptime(article_date, '%Y %m %d').date())
 
-            article_id = article_url.split('/')[3]
-            article_url = 'https://www.anti-malware.ru/' + article_url
+                article_id = article_url.split('/')[3]
+                article_url = 'https://www.anti-malware.ru/' + article_url
 
-            antimalware_news[article_id] = {
+                antimalware_news[article_id] = {
+                    "article_title": article_title,
+                    "article_url": article_url,
+                    "article_date": article_date
+                }
+                data.update(antimalware_news)
+    with open('news_dict.json', 'w') as file:
+        json.dump(data, file, ensure_ascii=False, indent=4)
+
+
+def get_habr_news():
+    r = requests.get(url=news_habr.url, headers=news_habr.headers)
+
+    soup = BeautifulSoup(r.text, "lxml")
+    articles_cards = soup.find_all("article", class_="tm-articles-list__item")
+    habr_news = {}
+    with open('news_dict.json') as file:
+        data = json.load(file)
+        for article in articles_cards:
+            try:
+                article_title = article.find("h2").text.strip()
+                article_url = article.find("a", class_="tm-article-snippet__title-link").get("href")
+                article_url = f"https://habr.com{article_url}"
+                article_id = article.get("id")
+                article_date = article.find("time").get("datetime")
+                article_date = str(datetime.datetime.strptime(article_date, "%Y-%m-%dT%H:%M:%S.%fZ").date())
+            except Exception:
+                continue
+
+            habr_news[article_id] = {
                 "article_title": article_title,
-                "article_desc": article_desc,
                 "article_url": article_url,
                 "article_date": article_date
             }
-            with open('news_dict.json') as file:
-                data = json.load(file)
-                data.update(antimalware_news)
+            data.update(habr_news)
+
     with open('news_dict.json', 'w') as file:
         json.dump(data, file, ensure_ascii=False, indent=4)
